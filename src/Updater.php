@@ -74,8 +74,8 @@ final class Updater
      * Inside the request that replaces the files, core rewrites this
      * transient while MODERN_MSPP_VERSION still holds the version loaded at
      * the start of the request. Comparing only with the constant would
-     * re-inject "1.1.0 -> 1.1.0" right after a successful update, and that
-     * phantom entry would live up to 12 hours.
+     * re-inject the installed version right after a successful update, and
+     * that phantom entry would live up to 12 hours.
      */
     public function inject_update(mixed $transient): mixed
     {
