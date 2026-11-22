@@ -3,7 +3,9 @@ declare(strict_types=1);
 
 namespace ModernMSPP;
 
-defined('ABSPATH') || exit;
+if (! defined('ABSPATH')) {
+    exit;
+}
 
 final class Publisher
 {
@@ -46,15 +48,11 @@ final class Publisher
 
     /**
      * Ask the cache layer not to cache the page while we still need to
-     * inject our fallback script. Front-end only.
+     * inject our fallback script. HTML page requests only.
      */
     public function on_send_headers(): void
     {
-        if (is_admin()) {
-            return;
-        }
-
-        if ($this->last_run() >= (time() - (self::FALLBACK_MULTIPLIER * $this->frequency()))) {
+        if (! $this->should_inject_fallback()) {
             return;
         }
 
@@ -68,7 +66,7 @@ final class Publisher
      */
     public function enqueue_fallback(): void
     {
-        if ($this->last_run() >= (time() - (self::FALLBACK_MULTIPLIER * $this->frequency()))) {
+        if (! $this->should_inject_fallback()) {
             return;
         }
 
@@ -125,7 +123,7 @@ final class Publisher
             wp_send_json_success();
         }
 
-        if ($this->recently_ran()) {
+        if ($this->recently_ran() || ! $this->claim_run()) {
             wp_send_json_success();
         }
 
@@ -136,12 +134,13 @@ final class Publisher
 
     /**
      * Publish up to BATCH_LIMIT posts that missed their schedule.
+     *
+     * The caller must own the run (claim_run()): the timestamp is written
+     * when the run is claimed, so publishing can never bypass the throttle.
      */
     public function publish_missed_posts(): void
     {
         global $wpdb;
-
-        update_option(self::OPTION_LAST_RUN, time());
 
         $ids = $wpdb->get_col(
             $wpdb->prepare(
@@ -158,14 +157,117 @@ final class Publisher
             return;
         }
 
-        // If we hit the batch limit, reset the timer so the next request
-        // continues the backlog immediately instead of waiting a full cycle.
-        if (count($ids) >= self::BATCH_LIMIT) {
-            update_option(self::OPTION_LAST_RUN, 0);
-        }
-
         foreach ($ids as $id) {
             wp_publish_post((int) $id);
         }
+
+        // If we hit the batch limit, reset the timer after the batch is
+        // published so the next request continues the backlog immediately.
+        // Resetting before the loop would let a second request claim the
+        // run and select the same not-yet-published rows again.
+        if (count($ids) >= self::BATCH_LIMIT) {
+            update_option(self::OPTION_LAST_RUN, 0);
+        }
+    }
+
+    /**
+     * Whether this request can render the browser fallback at all.
+     *
+     * send_headers() runs for every front-end request, but
+     * wp_enqueue_scripts only fires for HTML pages that call wp_head().
+     * Feeding no-store headers to feeds, robots.txt, REST and JSON
+     * responses would drop them from every page cache while no script
+     * could ever run there, so those requests are skipped.
+     */
+    private function should_inject_fallback(): bool
+    {
+        if (! $this->needs_fallback()) {
+            return false;
+        }
+
+        if (is_admin() || is_feed() || is_robots() || is_trackback()) {
+            return false;
+        }
+
+        // is_sitemap() exists since WP 7.1; on 7.0 the sitemap request is
+        // identified by its query var.
+        $is_sitemap = function_exists('is_sitemap')
+            ? is_sitemap()
+            : (bool) get_query_var('sitemap');
+
+        if ($is_sitemap) {
+            return false;
+        }
+
+        if ((defined('REST_REQUEST') && REST_REQUEST)
+            || (function_exists('wp_is_json_request') && wp_is_json_request())) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * True while no run happened for longer than one fallback window.
+     *
+     * The window is slightly longer than the throttle so a healthy loopback
+     * keeps the pages cacheable: by the time the script could be useful,
+     * a run has already updated the timestamp.
+     */
+    private function needs_fallback(): bool
+    {
+        return $this->last_run() < (time() - (self::FALLBACK_MULTIPLIER * $this->frequency()));
+    }
+
+    /**
+     * Atomically claims the current run.
+     *
+     * The previous read-then-write sequence let two concurrent requests
+     * (loopback plus browser fallback, or two visitors) both pass the
+     * throttle and publish the same batch twice, firing transition hooks
+     * twice. A single conditional statement makes the claim exclusive: only
+     * the request that changes the row may publish.
+     *
+     * The timestamp is deliberately written before the posts are selected:
+     * a fatal in the middle of a run costs one cycle, it never creates a
+     * publish loop.
+     *
+     * One statement both creates the option on the first run and performs
+     * the compare-and-swap. MySQL reports 1 affected row for the insert,
+     * 2 for a real update and 0 when the stored timestamp is still inside
+     * the throttle, so "0" means another request owns the run.
+     */
+    private function claim_run(): bool
+    {
+        global $wpdb;
+
+        $now = time();
+
+        $claimed = $wpdb->query(
+            $wpdb->prepare(
+                "INSERT INTO {$wpdb->options} (option_name, option_value, autoload)
+                 VALUES (%s, %s, %s)
+                 ON DUPLICATE KEY UPDATE option_value =
+                     IF(CAST(option_value AS UNSIGNED) < %d, %s, option_value)",
+                self::OPTION_LAST_RUN,
+                (string) $now,
+                'yes',
+                $now - $this->frequency(),
+                (string) $now
+            )
+        );
+
+        if ($claimed < 1) {
+            return false;
+        }
+
+        // The statement bypasses the options API: drop the cached value, the
+        // autoloaded "alloptions" map and the "option does not exist" marker
+        // that get_option() may have set earlier in this request.
+        wp_cache_delete(self::OPTION_LAST_RUN, 'options');
+        wp_cache_delete('alloptions', 'options');
+        wp_cache_delete('notoptions', 'options');
+
+        return true;
     }
 }

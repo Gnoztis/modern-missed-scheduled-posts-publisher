@@ -3,16 +3,26 @@ declare(strict_types=1);
 
 namespace ModernMSPP;
 
-defined('ABSPATH') || exit;
+if (! defined('ABSPATH')) {
+    exit;
+}
 
 /**
  * Stateless nonce for unauthenticated loopback requests.
  *
  * wp_create_nonce() requires a logged-in user + session token, which a
  * loopback request does not have. We therefore build a nonce on top of
- * wp_hash() (salted with NONCE_SALT from wp-config.php) so that the value
- * is unforgeable without access to the site's salts, and inherits the
- * standard 12/24-hour tick lifetime.
+ * wp_hash() (salted with the NONCE_KEY/NONCE_SALT salts from wp-config.php)
+ * so that the value is unforgeable without access to the site's salts, and
+ * inherits the standard 12/24-hour tick lifetime.
+ *
+ * Security note: the value is printed into public HTML so an anonymous
+ * browser can send it back, therefore it is NOT a secret and NOT an
+ * authorization check. The salt makes the hash unpredictable, but since
+ * the result is published, that grants no protection on its own: the
+ * nonce only filters blind bots and cross-site form posts. The real limit
+ * on the public endpoint is that it can publish nothing but scheduled
+ * posts whose post_date has already passed.
  */
 final class Nonce
 {

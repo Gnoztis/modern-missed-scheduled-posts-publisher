@@ -1,0 +1,13 @@
+# OS and editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local dependencies and tooling that must never be shipped
+node_modules/
+vendor/
+
+# Logs and temporary files
+*.log
+*.tmp

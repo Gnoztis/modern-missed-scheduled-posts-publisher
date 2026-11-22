@@ -3,7 +3,9 @@ declare(strict_types=1);
 
 namespace ModernMSPP;
 
-defined('ABSPATH') || exit;
+if (! defined('ABSPATH')) {
+    exit;
+}
 
 final class Review
 {
@@ -86,20 +88,20 @@ final class Review
         <div class="notice notice-info is-dismissible" id="modern-mspp-review-notice">
             <p>
                 <?php esc_html_e(
-                    'Could you please do me a big favor and give Modern Missed Scheduled Posts Publisher a rating on WordPress to help us spread the word?',
+                    'Понравился плагин? Поставьте оценку — это помогает другим сайтам узнать о нём.',
                     'modern-missed-scheduled-posts-publisher'
                 ); ?>
             </p>
             <p>
                 <a class="modern-mspp-action" data-action="remove" data-open="1"
                    href="<?php echo esc_url($review_5); ?>" target="_blank" rel="noopener noreferrer">
-                    <?php esc_html_e('Okay, you deserve it', 'modern-missed-scheduled-posts-publisher'); ?>
+                    <?php esc_html_e('Хорошо, ставлю оценку', 'modern-missed-scheduled-posts-publisher'); ?>
                 </a> |
                 <a class="modern-mspp-action" data-action="delay" href="#">
-                    <?php esc_html_e('Nope, maybe later', 'modern-missed-scheduled-posts-publisher'); ?>
+                    <?php esc_html_e('Не сейчас, может позже', 'modern-missed-scheduled-posts-publisher'); ?>
                 </a> |
                 <a class="modern-mspp-action" data-action="remove" href="#">
-                    <?php esc_html_e('I already did', 'modern-missed-scheduled-posts-publisher'); ?>
+                    <?php esc_html_e('Я уже поставил', 'modern-missed-scheduled-posts-publisher'); ?>
                 </a>
             </p>
         </div>

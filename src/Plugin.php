@@ -3,7 +3,9 @@ declare(strict_types=1);
 
 namespace ModernMSPP;
 
-defined('ABSPATH') || exit;
+if (! defined('ABSPATH')) {
+    exit;
+}
 
 final class Plugin
 {
@@ -11,9 +13,12 @@ final class Plugin
 
     private readonly Publisher $publisher;
 
+    private readonly Updater $updater;
+
     private function __construct()
     {
         $this->publisher = new Publisher();
+        $this->updater   = new Updater();
     }
 
     public static function instance(): self
@@ -24,5 +29,6 @@ final class Plugin
     public function boot(): void
     {
         $this->publisher->register();
+        $this->updater->register_hooks();
     }
 }
