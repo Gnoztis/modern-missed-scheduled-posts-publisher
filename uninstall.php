@@ -27,7 +27,7 @@ if ( ! function_exists( 'modern_mspp_uninstall_site' ) ) {
 		delete_option( 'modern_mspp_review_removed' );
 		delete_option( 'modern_mspp_review_delayed' );
 
-		// Update-check cache created by src/Updater.php.
+		// Update-check cache created by includes/class-modern_mspp-github-updater.php.
 		delete_transient( 'modern_mspp_github_release' );
 		delete_transient( 'modern_mspp_github_release_error' );
 

@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Modern Missed Scheduled Posts Publisher
  * Description:       Catches scheduled posts that have been missed and publishes them.
- * Version:           1.1.1
+ * Version:           1.1.2
  * Requires at least: 7.0
  * Tested up to:      7.1
  * Requires PHP:      8.4
@@ -22,16 +22,22 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-const VERSION = '1.1.1';
+const VERSION = '1.1.2';
 
 define('MODERN_MSPP_VERSION', VERSION);
 define('MODERN_MSPP_FILE', __FILE__);
 define('MODERN_MSPP_DIR', plugin_dir_path(__FILE__));
 define('MODERN_MSPP_URL', plugin_dir_url(__FILE__));
 
+// The generated updater reads MODERN_MSPP_GITHUB_TOKEN. The plugin docs use
+// the shorter MSPP_GITHUB_TOKEN, so map it before the updater class is loaded.
+if (defined('MSPP_GITHUB_TOKEN') && ! defined('MODERN_MSPP_GITHUB_TOKEN')) {
+    define('MODERN_MSPP_GITHUB_TOKEN', (string) constant('MSPP_GITHUB_TOKEN'));
+}
+
 require_once MODERN_MSPP_DIR . 'src/Nonce.php';
 require_once MODERN_MSPP_DIR . 'src/Publisher.php';
-require_once MODERN_MSPP_DIR . 'src/Updater.php';
+require_once MODERN_MSPP_DIR . 'includes/class-modern_mspp-github-updater.php';
 require_once MODERN_MSPP_DIR . 'src/Plugin.php';
 
 add_action('plugins_loaded', static function (): void {

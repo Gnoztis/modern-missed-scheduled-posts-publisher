@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace ModernMSPP;
 
+use MODERN_MSPP_GitHub_Updater;
+
 if (! defined('ABSPATH')) {
     exit;
 }
@@ -13,12 +15,12 @@ final class Plugin
 
     private readonly Publisher $publisher;
 
-    private readonly Updater $updater;
+    private readonly MODERN_MSPP_GitHub_Updater $updater;
 
     private function __construct()
     {
         $this->publisher = new Publisher();
-        $this->updater   = new Updater();
+        $this->updater   = new MODERN_MSPP_GitHub_Updater();
     }
 
     public static function instance(): self

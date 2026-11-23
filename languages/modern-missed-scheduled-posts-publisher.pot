@@ -2,7 +2,7 @@
 # This file is distributed under the GPLv2 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Modern Missed Scheduled Posts Publisher 1.1.1\n"
+"Project-Id-Version: Modern Missed Scheduled Posts Publisher 1.1.2\n"
 "Report-Msgid-Bugs-To: https://github.com/Gnoztis/modern-missed-scheduled-posts-publisher/issues\n"
 "POT-Creation-Date: 2026-11-23 00:00+0000\n"
 "MIME-Version: 1.0\n"
@@ -13,14 +13,66 @@ msgstr ""
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "X-Domain: modern-missed-scheduled-posts-publisher\n"
 
-#: src/Updater.php:230
-msgid "Публикует просроченные запланированные записи, когда WP-Cron не сработал."
+#: includes/class-modern_mspp-github-updater.php:315
+msgid "Catches scheduled posts that have been missed and publishes them."
 msgstr ""
 
-#: src/Updater.php:235
+#: includes/class-modern_mspp-github-updater.php:316
 msgid "Описание изменений в релизе не заполнено."
 msgstr ""
 
-#: src/Updater.php:322
+#: includes/class-modern_mspp-github-updater.php:516
 msgid "Проверить обновления"
+msgstr ""
+
+#: includes/class-modern_mspp-github-updater.php:544
+msgid "Modern Missed Scheduled Posts Publisher: проверка обновлений не удалась."
+msgstr ""
+
+#: includes/class-modern_mspp-github-updater.php:956
+msgid "лимит GitHub API"
+msgstr ""
+
+#: includes/class-modern_mspp-github-updater.php:957
+msgid "репозиторий или тег не найдены"
+msgstr ""
+
+#: includes/class-modern_mspp-github-updater.php:958
+msgid "токен отклонён"
+msgstr ""
+
+#: includes/class-modern_mspp-github-updater.php:959
+msgid "нет связи с GitHub"
+msgstr ""
+
+#: includes/class-modern_mspp-github-updater.php:960
+msgid "неожиданный ответ GitHub"
+msgstr ""
+
+#: includes/class-modern_mspp-github-updater.php:961
+msgid "неизвестная ошибка"
+msgstr ""
+
+#: includes/class-modern_mspp-github-updater.php:969
+msgid "проверка не удалась: %1$s (%2$s)"
+msgstr ""
+
+#: includes/class-modern_mspp-github-updater.php:983
+msgid "Задайте MODERN_MSPP_GITHUB_TOKEN в wp-config.php: без токена GitHub разрешает 60 запросов в час на IP, с токеном — 5000."
+msgstr ""
+
+#: includes/class-modern_mspp-github-updater.php:985
+msgid "Проверьте, что тег вида vX.Y.Z существует в репозитории и репозиторий доступен без авторизации."
+msgstr ""
+
+#: includes/class-modern_mspp-github-updater.php:987
+msgid "Проверьте MODERN_MSPP_GITHUB_TOKEN: токен должен иметь доступ на чтение публичного репозитория."
+msgstr ""
+
+#: includes/class-modern_mspp-github-updater.php:989
+msgid "Хостинг не смог открыть api.github.com: проверьте исходящие запросы и DNS."
+msgstr ""
+
+#: includes/class-modern_mspp-github-updater.php:991
+msgid "Повторите проверку позже; если ошибка повторяется, посмотрите ответ api.github.com."
 msgstr ""
