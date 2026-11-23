@@ -2,10 +2,10 @@
 /**
  * Plugin Name:       Modern Missed Scheduled Posts Publisher
  * Description:       Catches scheduled posts that have been missed and publishes them.
- * Version:           1.1.3
+ * Version:           1.1.4
  * Requires at least: 7.0
  * Tested up to:      7.1
- * Requires PHP:      8.4
+ * Requires PHP:      8.1
  * Author:            Gnostis
  * License:           GPLv2 or later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
@@ -22,7 +22,7 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-const VERSION = '1.1.3';
+const VERSION = '1.1.4';
 
 define('MODERN_MSPP_VERSION', VERSION);
 define('MODERN_MSPP_FILE', __FILE__);

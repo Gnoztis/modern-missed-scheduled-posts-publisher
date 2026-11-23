@@ -111,7 +111,7 @@ final class MODERN_MSPP_GitHub_Updater {
 
 	/**
 	 * Basename of the installed main plugin file, e.g.
-	 * "modern-missed-scheduled-posts-publisher/modern-missed-scheduled-posts-publisher.php".
+	 * "<slug>/<slug>.php".
 	 *
 	 * Computed at runtime, never taken from a constant: the folder is
 	 * whatever the site has. A GitHub zipball unpacks into
@@ -132,6 +132,27 @@ final class MODERN_MSPP_GitHub_Updater {
 		}
 
 		return $basename;
+	}
+
+	/**
+	 * Slug of the installed plugin: the folder of the main file at runtime.
+	 *
+	 * WordPress requests the plugin details modal with the folder the plugin
+	 * is installed in, which may differ from the repository slug after a
+	 * manual rename or an archive that unpacked under another name. Updates
+	 * already key on plugin_basename() and keep working, so the modal has to
+	 * answer under the same runtime name. When the main file sits directly in
+	 * the plugins directory there is no folder, and the repository slug is the
+	 * fallback.
+	 */
+	public static function slug(): string {
+		$folder = dirname( self::basename() );
+
+		if ( '.' === $folder || '' === $folder || '/' === $folder ) {
+			return 'modern-missed-scheduled-posts-publisher';
+		}
+
+		return $folder;
 	}
 
 	/* ============================================================
@@ -299,7 +320,17 @@ final class MODERN_MSPP_GitHub_Updater {
 		if ( 'plugin_information' !== $action || ! is_object( $args ) || empty( $args->slug ) ) {
 			return $result;
 		}
-		if ( 'modern-missed-scheduled-posts-publisher' !== (string) $args->slug ) {
+
+		// The modal is requested with the installed folder name; the full
+		// basename and the repository slug are accepted as well, because core
+		// and older integrations ask with either of them.
+		$requested = (string) $args->slug;
+
+		if (
+			$requested !== self::slug()
+			&& $requested !== self::basename()
+			&& $requested !== 'modern-missed-scheduled-posts-publisher'
+		) {
 			return $result;
 		}
 
@@ -322,7 +353,7 @@ final class MODERN_MSPP_GitHub_Updater {
 			'download_link' => $release['package'],
 			'last_updated'  => $release['published_at'],
 			'sections'      => [
-				'description' => __( 'Catches scheduled posts that have been missed and publishes them.', 'modern-missed-scheduled-posts-publisher' ),
+				'description' => __( 'Ловит пропущенные запланированные записи и публикует их.', 'modern-missed-scheduled-posts-publisher' ),
 				'changelog'   => $release['body'] !== '' ? wpautop( $release['body'] ) : __( 'Описание изменений в релизе не заполнено.', 'modern-missed-scheduled-posts-publisher' ),
 			],
 		];
@@ -334,11 +365,17 @@ final class MODERN_MSPP_GitHub_Updater {
 	 * actually uses (the folder of the installed main file), otherwise
 	 * WordPress updates the wrong directory or adds a second copy.
 	 *
+	 * This is also the supply-chain gate: before anything is renamed the
+	 * unpacked directory is checked for path traversal (zip-slip), the main
+	 * file must be present, and the archive version must not go backwards.
+	 * Any failure returns a WP_Error so the upgrader aborts before the
+	 * installed plugin is touched — a failed update leaves the site intact.
+	 *
 	 * @param string $source
 	 * @param string $remote_source
 	 * @param mixed  $upgrader
 	 * @param array  $hook_extra
-	 * @return string
+	 * @return string|WP_Error
 	 */
 	public function rename_source( $source, $remote_source, $upgrader, $hook_extra = [] ) {
 		if ( ! is_string( $source ) || ! is_string( $remote_source ) ) {
@@ -368,25 +405,76 @@ final class MODERN_MSPP_GitHub_Updater {
 		if ( '' === $target || $ours !== $target ) {
 			return $source;
 		}
-		if ( ! is_dir( $source ) ) {
-			return $source;
+		if ( ! is_dir( $source ) || is_link( $source ) ) {
+			return $this->package_error(
+				'wss_unsafe_source',
+				__( 'Архив обновления распакован в небезопасный путь — установка отменена.', 'modern-missed-scheduled-posts-publisher' )
+			);
 		}
-		if ( ! is_file( trailingslashit( $source ) . wp_basename( MODERN_MSPP_FILE ) ) ) {
-			return $source;
+
+		// Zip-slip: a hostile archive can create symlinks or `../` entries, so
+		// the real path of the unpacked directory must stay inside the
+		// WordPress content directory (plugins, or the upgrader's work area).
+		$source_real = realpath( $source );
+		$content_real = realpath( WP_CONTENT_DIR );
+
+		if ( false === $source_real || false === $content_real
+			|| ! $this->is_inside( $source_real, $content_real ) ) {
+			return $this->package_error(
+				'wss_unsafe_source',
+				__( 'Распакованный архив выходит за пределы каталога WordPress — установка отменена.', 'modern-missed-scheduled-posts-publisher' )
+			);
+		}
+
+		$main_file = trailingslashit( $source ) . wp_basename( MODERN_MSPP_FILE );
+
+		if ( ! is_file( $main_file ) ) {
+			return $this->package_error(
+				'wss_package_missing_file',
+				__( 'В архиве обновления нет главного файла плагина — установка отменена.', 'modern-missed-scheduled-posts-publisher' )
+			);
+		}
+
+		// Downgrade protection: a stale or hostile tag must not install an
+		// older version over the one on disk. The version is read from the
+		// archive's own header, not from the tag name.
+		$archive_version = $this->version_from_file( $main_file );
+		$installed       = $this->installed_version();
+
+		if ( '' !== $archive_version && version_compare( $archive_version, $installed, '<' ) ) {
+			return $this->package_error(
+				'wss_downgrade',
+				sprintf(
+					/* translators: 1: version in the archive, 2: installed version */
+					__( 'Архив содержит версию %1$s, а установлена %2$s: установка старых версий запрещена.', 'modern-missed-scheduled-posts-publisher' ),
+					$archive_version,
+					$installed
+				)
+			);
 		}
 
 		// Rename the unpacked directory to the folder the site actually
 		// uses, not to the slug: the update has to replace the installed
 		// directory, otherwise WordPress ends up with two copies of the
 		// plugin (one of them inactive).
-		$folder = dirname( self::basename() );
-		if ( $folder === '.' || $folder === '' ) {
+		$folder = dirname( $ours );
+		if ( $folder === '.' || $folder === '' || $folder === '..' || strpos( $folder, '..' ) !== false ) {
 			// The main file sits directly in the plugins directory, so
 			// there is no directory to rename.
 			return $source;
 		}
 
-		$desired = trailingslashit( $remote_source ) . $folder;
+		$desired       = trailingslashit( $remote_source ) . $folder;
+		$desired_parent = realpath( dirname( untrailingslashit( $desired ) ) );
+
+		if ( false === $desired_parent
+			|| ( ! $this->is_inside( $desired_parent, (string) realpath( WP_PLUGIN_DIR ) ) && ! $this->is_inside( $desired_parent, $content_real ) ) ) {
+			return $this->package_error(
+				'wss_unsafe_destination',
+				__( 'Каталог установки вне каталога плагинов — установка отменена.', 'modern-missed-scheduled-posts-publisher' )
+			);
+		}
+
 		if ( untrailingslashit( $source ) === untrailingslashit( $desired ) ) {
 			return $source;
 		}
@@ -397,14 +485,66 @@ final class MODERN_MSPP_GitHub_Updater {
 			WP_Filesystem();
 		}
 		if ( ! $wp_filesystem ) {
-			return $source;
+			return $this->package_error(
+				'wss_no_filesystem',
+				__( 'Нет доступа к файловой системе — установка отменена, плагин не тронут.', 'modern-missed-scheduled-posts-publisher' )
+			);
 		}
 
-		if ( $wp_filesystem->move( $source, $desired, true ) ) {
-			return trailingslashit( $desired );
+		if ( ! $wp_filesystem->move( $source, $desired, true ) ) {
+			return $this->package_error(
+				'wss_package_move_failed',
+				__( 'Не удалось переименовать каталог обновления — установка отменена, установленный плагин не тронут.', 'modern-missed-scheduled-posts-publisher' )
+			);
 		}
 
-		return $source;
+		// Rollback: a move that produced no main file must not reach the
+		// destination. Remove what we created and abort.
+		if ( ! is_file( trailingslashit( $desired ) . wp_basename( MODERN_MSPP_FILE ) ) ) {
+			$wp_filesystem->delete( $desired, true );
+
+			return $this->package_error(
+				'wss_package_incomplete',
+				__( 'После распаковки в каталоге нет главного файла — установка отменена, изменения отменены.', 'modern-missed-scheduled-posts-publisher' )
+			);
+		}
+
+		return trailingslashit( $desired );
+	}
+
+	/**
+	 * WP_Error for a refused package, with one shared code prefix.
+	 *
+	 * @return WP_Error
+	 */
+	private function package_error( string $code, string $message ): WP_Error {
+		return new WP_Error( $code, $message );
+	}
+
+	/**
+	 * Whether a real path is the root itself or lives below it.
+	 */
+	private function is_inside( string $path, string $root ): bool {
+		if ( '' === $root ) {
+			return false;
+		}
+
+		$root = untrailingslashit( $root );
+
+		return $path === $root || 0 === strpos( $path, $root . DIRECTORY_SEPARATOR );
+	}
+
+	/**
+	 * Version header of a file, empty when it cannot be read.
+	 */
+	private function version_from_file( string $file ): string {
+		if ( ! function_exists( 'get_file_data' ) || ! is_file( $file ) ) {
+			return '';
+		}
+
+		$data = get_file_data( $file, [ 'Version' => 'Version' ], 'plugin' );
+
+		return isset( $data['Version'] ) ? trim( (string) $data['Version'] ) : '';
 	}
 
 	/**
@@ -990,11 +1130,11 @@ final class MODERN_MSPP_GitHub_Updater {
 	private static function error_hint( array $error ): string {
 		switch ( $error['reason'] ) {
 			case 'rate_limit':
-				return __( 'Задайте MODERN_MSPP_GITHUB_TOKEN в wp-config.php: без токена GitHub разрешает 60 запросов в час на IP, с токеном — 5000.', 'modern-missed-scheduled-posts-publisher' );
+				return __( 'Задайте MSPP_GITHUB_TOKEN в wp-config.php: без токена GitHub разрешает 60 запросов в час на IP, с токеном — 5000.', 'modern-missed-scheduled-posts-publisher' );
 			case 'not_found':
-				return __( 'Проверьте, что тег вида vX.Y.Z существует в репозитории и репозиторий доступен без авторизации.', 'modern-missed-scheduled-posts-publisher' );
+				return __( 'Проверьте, что тег вида vX.Y.Z существует и репозиторий доступен текущему токену: приватный репозиторий без прав тоже отвечает 404.', 'modern-missed-scheduled-posts-publisher' );
 			case 'unauthorized':
-				return __( 'Проверьте MODERN_MSPP_GITHUB_TOKEN: токен должен иметь доступ на чтение публичного репозитория.', 'modern-missed-scheduled-posts-publisher' );
+				return __( 'Проверьте MSPP_GITHUB_TOKEN: токен должен иметь доступ на чтение этого репозитория.', 'modern-missed-scheduled-posts-publisher' );
 			case 'network':
 				return __( 'Хостинг не смог открыть api.github.com: проверьте исходящие запросы и DNS.', 'modern-missed-scheduled-posts-publisher' );
 			default:
@@ -1073,7 +1213,7 @@ final class MODERN_MSPP_GitHub_Updater {
 	 * whether it is configured.
 	 */
 	private static function token(): string {
-		$token = defined( 'MODERN_MSPP_GITHUB_TOKEN' ) ? (string) MODERN_MSPP_GITHUB_TOKEN : '';
+		$token = defined( 'MSPP_GITHUB_TOKEN' ) ? (string) MSPP_GITHUB_TOKEN : '';
 		$token = (string) apply_filters( 'modern_mspp_github_token', $token );
 		return trim( $token );
 	}
