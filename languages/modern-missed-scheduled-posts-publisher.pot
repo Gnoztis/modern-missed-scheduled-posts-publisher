@@ -2,7 +2,7 @@
 # This file is distributed under the GPLv2 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Modern Missed Scheduled Posts Publisher 1.1.2\n"
+"Project-Id-Version: Modern Missed Scheduled Posts Publisher 1.1.7\n"
 "Report-Msgid-Bugs-To: https://github.com/Gnoztis/modern-missed-scheduled-posts-publisher/issues\n"
 "POT-Creation-Date: 2026-11-23 00:00+0000\n"
 "MIME-Version: 1.0\n"
@@ -13,66 +13,98 @@ msgstr ""
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "X-Domain: modern-missed-scheduled-posts-publisher\n"
 
-#: includes/class-modern_mspp-github-updater.php:315
-msgid "Catches scheduled posts that have been missed and publishes them."
+#: includes/class-modern_mspp-github-updater.php:366
+msgid "Ловит пропущенные запланированные записи и публикует их."
 msgstr ""
 
-#: includes/class-modern_mspp-github-updater.php:316
+#: includes/class-modern_mspp-github-updater.php:367
 msgid "Описание изменений в релизе не заполнено."
 msgstr ""
 
-#: includes/class-modern_mspp-github-updater.php:516
+#: includes/class-modern_mspp-github-updater.php:421
+msgid "Архив обновления распакован в небезопасный путь — установка отменена."
+msgstr ""
+
+#: includes/class-modern_mspp-github-updater.php:435
+msgid "Распакованный архив выходит за пределы каталога WordPress — установка отменена."
+msgstr ""
+
+#: includes/class-modern_mspp-github-updater.php:444
+msgid "В архиве обновления нет главного файла плагина — установка отменена."
+msgstr ""
+
+#: includes/class-modern_mspp-github-updater.php:459
+msgid "Архив содержит версию %1$s, а установлена %2$s: установка старых версий запрещена."
+msgstr ""
+
+#: includes/class-modern_mspp-github-updater.php:484
+msgid "Каталог установки вне каталога плагинов — установка отменена."
+msgstr ""
+
+#: includes/class-modern_mspp-github-updater.php:500
+msgid "Нет доступа к файловой системе — установка отменена, плагин не тронут."
+msgstr ""
+
+#: includes/class-modern_mspp-github-updater.php:507
+msgid "Не удалось переименовать каталог обновления — установка отменена, установленный плагин не тронут."
+msgstr ""
+
+#: includes/class-modern_mspp-github-updater.php:518
+msgid "После распаковки в каталоге нет главного файла — установка отменена, изменения отменены."
+msgstr ""
+
+#: includes/class-modern_mspp-github-updater.php:766
 msgid "Проверить обновления"
 msgstr ""
 
-#: includes/class-modern_mspp-github-updater.php:544
+#: includes/class-modern_mspp-github-updater.php:794
 msgid "Modern Missed Scheduled Posts Publisher: проверка обновлений не удалась."
 msgstr ""
 
-#: includes/class-modern_mspp-github-updater.php:956
+#: includes/class-modern_mspp-github-updater.php:1206
 msgid "лимит GitHub API"
 msgstr ""
 
-#: includes/class-modern_mspp-github-updater.php:957
+#: includes/class-modern_mspp-github-updater.php:1207
 msgid "репозиторий или тег не найдены"
 msgstr ""
 
-#: includes/class-modern_mspp-github-updater.php:958
+#: includes/class-modern_mspp-github-updater.php:1208
 msgid "токен отклонён"
 msgstr ""
 
-#: includes/class-modern_mspp-github-updater.php:959
+#: includes/class-modern_mspp-github-updater.php:1209
 msgid "нет связи с GitHub"
 msgstr ""
 
-#: includes/class-modern_mspp-github-updater.php:960
+#: includes/class-modern_mspp-github-updater.php:1210
 msgid "неожиданный ответ GitHub"
 msgstr ""
 
-#: includes/class-modern_mspp-github-updater.php:961
+#: includes/class-modern_mspp-github-updater.php:1211
 msgid "неизвестная ошибка"
 msgstr ""
 
-#: includes/class-modern_mspp-github-updater.php:969
+#: includes/class-modern_mspp-github-updater.php:1219
 msgid "проверка не удалась: %1$s (%2$s)"
 msgstr ""
 
-#: includes/class-modern_mspp-github-updater.php:983
-msgid "Задайте MODERN_MSPP_GITHUB_TOKEN в wp-config.php: без токена GitHub разрешает 60 запросов в час на IP, с токеном — 5000."
+#: includes/class-modern_mspp-github-updater.php:1233
+msgid "Задайте MSPP_GITHUB_TOKEN в wp-config.php: без токена GitHub разрешает 60 запросов в час на IP, с токеном — 5000."
 msgstr ""
 
-#: includes/class-modern_mspp-github-updater.php:985
-msgid "Проверьте, что тег вида vX.Y.Z существует в репозитории и репозиторий доступен без авторизации."
+#: includes/class-modern_mspp-github-updater.php:1235
+msgid "Проверьте, что тег вида vX.Y.Z существует и репозиторий доступен текущему токену: приватный репозиторий без прав тоже отвечает 404."
 msgstr ""
 
-#: includes/class-modern_mspp-github-updater.php:987
-msgid "Проверьте MODERN_MSPP_GITHUB_TOKEN: токен должен иметь доступ на чтение публичного репозитория."
+#: includes/class-modern_mspp-github-updater.php:1237
+msgid "Проверьте MSPP_GITHUB_TOKEN: токен должен иметь доступ на чтение этого репозитория."
 msgstr ""
 
-#: includes/class-modern_mspp-github-updater.php:989
+#: includes/class-modern_mspp-github-updater.php:1239
 msgid "Хостинг не смог открыть api.github.com: проверьте исходящие запросы и DNS."
 msgstr ""
 
-#: includes/class-modern_mspp-github-updater.php:991
+#: includes/class-modern_mspp-github-updater.php:1241
 msgid "Повторите проверку позже; если ошибка повторяется, посмотрите ответ api.github.com."
 msgstr ""
