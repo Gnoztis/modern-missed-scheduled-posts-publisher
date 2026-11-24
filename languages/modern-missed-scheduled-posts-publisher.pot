@@ -9,7 +9,7 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Modern Missed Scheduled Posts Publisher 1.1.8\n"
+"Project-Id-Version: Modern Missed Scheduled Posts Publisher 1.1.9\n"
 "Report-Msgid-Bugs-To: https://github.com/Gnoztis/modern-missed-scheduled-posts-publisher/issues\n"
 "POT-Creation-Date: 2026-11-24T06:42:48+00:00\n"
 "MIME-Version: 1.0\n"

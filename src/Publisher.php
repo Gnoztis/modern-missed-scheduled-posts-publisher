@@ -15,6 +15,14 @@ final class Publisher
     public const FALLBACK_MULTIPLIER = 1.1;
     public const DEFAULT_FREQUENCY   = 900;
 
+    /**
+     * The inline fallback source, read once per request.
+     *
+     * Kept in memory so should_inject_fallback() and enqueue_fallback() do not
+     * read the asset twice on the same page.
+     */
+    private ?string $fallback_script_cache = null;
+
     public function register(): void
     {
         add_action('send_headers', [$this, 'on_send_headers']);
@@ -61,8 +69,12 @@ final class Publisher
     }
 
     /**
-     * Inject a tiny fetch()-based fallback for when the loopback fails
+     * Embed a tiny fetch()-based fallback for when the loopback fails
      * (hosts often block loopback requests).
+     *
+     * The script is inlined into the page: an empty handle plus
+     * wp_add_inline_script() means no separate request and no <script src>.
+     * assets/js/fallback.js stays in the repository as the source.
      */
     public function enqueue_fallback(): void
     {
@@ -70,21 +82,50 @@ final class Publisher
             return;
         }
 
+        $script = $this->fallback_script();
+        if ('' === $script) {
+            return;
+        }
+
         // Once we know real visitor traffic hits the server, the loopback is unnecessary.
         remove_action('shutdown', [$this, 'loopback']);
 
-        wp_enqueue_script(
-            self::ACTION,
-            MODERN_MSPP_URL . 'assets/js/fallback.js',
-            [],
-            MODERN_MSPP_VERSION,
-            true
-        );
+        wp_register_script(self::ACTION, false, [], MODERN_MSPP_VERSION, true);
+        wp_enqueue_script(self::ACTION);
 
         wp_localize_script(self::ACTION, 'modernMsppFallback', [
             'url'  => add_query_arg('action', self::ACTION, admin_url('admin-ajax.php')),
             'body' => self::ACTION . '_nonce=' . Nonce::create(self::ACTION),
         ]);
+
+        wp_add_inline_script(self::ACTION, $script);
+    }
+
+    /**
+     * Contents of assets/js/fallback.js, or '' when it cannot be read.
+     *
+     * The file is the source of truth but is never served as a separate asset:
+     * it is embedded into the page. A missing file disables only the browser
+     * fallback; the shutdown loopback stays registered.
+     */
+    private function fallback_script(): string
+    {
+        if (null !== $this->fallback_script_cache) {
+            return $this->fallback_script_cache;
+        }
+
+        $file = MODERN_MSPP_DIR . 'assets/js/fallback.js';
+
+        if (! is_readable($file)) {
+            $this->fallback_script_cache = '';
+            return $this->fallback_script_cache;
+        }
+
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- local plugin asset, never a user path.
+        $contents = file_get_contents($file);
+        $this->fallback_script_cache = is_string($contents) ? $contents : '';
+
+        return $this->fallback_script_cache;
     }
 
     /**
@@ -173,11 +214,11 @@ final class Publisher
     /**
      * Whether this request can render the browser fallback at all.
      *
-     * send_headers() runs for every front-end request, but
-     * wp_enqueue_scripts only fires for HTML pages that call wp_head().
-     * Feeding no-store headers to feeds, robots.txt, REST and JSON
-     * responses would drop them from every page cache while no script
-     * could ever run there, so those requests are skipped.
+     * send_headers() runs for every front-end request, but the fallback is
+     * only useful on a normal public content view that calls wp_head(): not in
+     * the admin, feeds, robots.txt, trackback, sitemap, REST/JSON, search,
+     * 404, previews or embeds. Everything else keeps the shutdown loopback and
+     * is never touched by this script.
      */
     private function should_inject_fallback(): bool
     {
@@ -204,7 +245,23 @@ final class Publisher
             return false;
         }
 
-        return true;
+        if (is_preview() || is_customize_preview()) {
+            return false;
+        }
+
+        if (function_exists('is_embed') && is_embed()) {
+            return false;
+        }
+
+        // Normal content views only: front page, blog index, singular and
+        // archives. Search, 404, favicons and other utility pages keep the
+        // loopback trigger but never receive the inline script.
+        if (! (is_front_page() || is_home() || is_singular() || is_archive())) {
+            return false;
+        }
+
+        // A missing source file disables only the browser fallback.
+        return '' !== $this->fallback_script();
     }
 
     /**
